@@ -45,10 +45,83 @@ services:
         max-size: 10m
         max-file: "3"
 
+  # ──────────────────────────────────────────
+  # Monitoring — Dozzle (real-time Docker log viewer)
+  # Single instance sees ALL containers via Docker socket.
+  # ──────────────────────────────────────────
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: infra_dozzle
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - traefik-public
+    restart: unless-stopped
+    environment:
+      DOZZLE_NO_ANALYTICS: "true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.dozzle-secure.rule=Host(`logs.creatif-pro.com`) || Host(`logs.demo.toukrichtemed.com`)"
+      - "traefik.http.routers.dozzle-secure.entrypoints=websecure"
+      - "traefik.http.routers.dozzle-secure.tls=true"
+      - "traefik.http.routers.dozzle-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+        reservations:
+          cpus: "0.05"
+          memory: 16M
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
+  # ──────────────────────────────────────────
+  # Monitoring — Uptime Kuma (health checks & alerts)
+  # Single instance monitors all services.
+  # ──────────────────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: infra_uptime_kuma
+    volumes:
+      - uptime_kuma_data:/app/data
+    networks:
+      - traefik-public
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.uptimekuma-secure.rule=Host(`status.creatif-pro.com`) || Host(`status.demo.toukrichtemed.com`)"
+      - "traefik.http.routers.uptimekuma-secure.entrypoints=websecure"
+      - "traefik.http.routers.uptimekuma-secure.tls=true"
+      - "traefik.http.routers.uptimekuma-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.services.uptimekuma.loadbalancer.server.port=3001"
+      - "traefik.http.services.uptimekuma.loadbalancer.responseforwarding.flushinterval=0"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
 volumes:
   letsencrypt:
     name: infra_letsencrypt
     external: true
+  uptime_kuma_data:
+    driver: local
 
 networks:
   traefik-public:
