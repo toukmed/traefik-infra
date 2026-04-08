@@ -116,11 +116,49 @@ services:
         max-size: 5m
         max-file: "2"
 
+  # ──────────────────────────────────────────
+  # Management — Portainer CE (Docker UI)
+  # Full container/volume/network management via web UI.
+  # ──────────────────────────────────────────
+  portainer:
+    image: portainer/portainer-ce:lts
+    container_name: infra_portainer
+    command: --http-enabled
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - portainer_data:/data
+    networks:
+      - traefik-public
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.portainer-secure.rule=Host(`portainer.creatif-pro.com`)"
+      - "traefik.http.routers.portainer-secure.entrypoints=websecure"
+      - "traefik.http.routers.portainer-secure.tls=true"
+      - "traefik.http.routers.portainer-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
 volumes:
   letsencrypt:
     name: infra_letsencrypt
     external: true
   uptime_kuma_data:
+    driver: local
+  portainer_data:
     driver: local
 
 networks:
